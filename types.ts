@@ -6,12 +6,37 @@ export enum PersonaMode {
   MOTIVATIONAL = 'Motivational'
 }
 
+export enum ToolMode {
+  CHAT = 'chat',
+  SEARCH = 'search',
+  MAPS = 'maps',
+  IMAGE_GEN = 'image_gen',
+  VIDEO_GEN = 'video_gen'
+}
+
+export interface Attachment {
+  mimeType: string;
+  data: string; // base64
+  previewUri?: string;
+}
+
+export interface GroundingSource {
+  title: string;
+  uri: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'model' | 'system';
   content: string;
   timestamp: number;
   thinking?: boolean;
+  
+  // Rich Content
+  imageUri?: string;
+  videoUri?: string;
+  audioUri?: string;
+  groundingSources?: GroundingSource[];
 }
 
 export interface DetailedMetrics {
