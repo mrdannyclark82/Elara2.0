@@ -207,13 +207,13 @@ const App: React.FC = () => {
       <div className="flex-1 relative flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 via-slate-950 to-black">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-900/10 via-slate-950/50 to-black pointer-events-none"></div>
         
-        {/* Avatar */}
-        <div className="w-full h-[40%] md:h-[50%] relative z-0">
+        {/* Avatar Area - REDUCED HEIGHT */}
+        <div className="w-full h-[35%] md:h-[35%] relative z-0">
           <Avatar3D isSpeaking={isThinking} mood={isThinking ? 'thinking' : 'neutral'} />
         </div>
 
-        {/* Chat Area */}
-        <div className="w-full max-w-4xl px-4 pb-6 z-10 flex flex-col h-[60%] md:h-[50%] transition-all duration-500 bg-gradient-to-t from-black via-slate-950/90 to-transparent pt-8">
+        {/* Chat Area - INCREASED HEIGHT */}
+        <div className="w-full max-w-4xl px-4 pb-6 z-10 flex flex-col h-[65%] md:h-[65%] transition-all duration-500 bg-gradient-to-t from-black via-slate-950/90 to-transparent pt-4">
             
             {/* Messages */}
             <div className="flex-1 overflow-y-auto mb-4 space-y-6 pr-3 custom-scrollbar">
@@ -270,10 +270,10 @@ const App: React.FC = () => {
                 <div className="flex gap-2 px-1">
                     {[
                         { id: ToolMode.CHAT, icon: 'fa-brain', label: 'Chat' },
-                        { id: ToolMode.SEARCH, icon: 'fa-search', label: 'Google Search' },
+                        { id: ToolMode.SEARCH, icon: 'fa-search', label: 'Search' },
                         { id: ToolMode.MAPS, icon: 'fa-map-marker-alt', label: 'Maps' },
                         { id: ToolMode.IMAGE_GEN, icon: 'fa-image', label: 'Imagine' },
-                        { id: ToolMode.VIDEO_GEN, icon: 'fa-video', label: 'Veo Video' },
+                        { id: ToolMode.VIDEO_GEN, icon: 'fa-video', label: 'Veo' },
                     ].map(tool => (
                         <button
                             key={tool.id}
