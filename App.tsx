@@ -78,7 +78,7 @@ const App: React.FC = () => {
   }, [messages]);
 
   // Periodic Events
-  useEffect(() => {
+  /*useEffect(() => {
     if (!DEMO_API_KEY) return;
     const featureInterval = setInterval(async () => {
         const proposal = await generateFeatureProposal();
@@ -89,7 +89,7 @@ const App: React.FC = () => {
         addGrowthEntry('audit', 'Ethical Audit', audit);
     }, 90000);
     return () => { clearInterval(featureInterval); clearInterval(auditInterval); };
-  }, []);
+  }, []);*/
 
   const addGrowthEntry = (type: GrowthEntry['type'], title: string, details: string) => {
     setGrowthLog(prev => [...prev, { id: Date.now().toString(), type, title, timestamp: Date.now(), details }]);
