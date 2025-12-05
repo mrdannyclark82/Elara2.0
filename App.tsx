@@ -52,49 +52,91 @@ const App: React.FC = () => {
     relevance: 88, humor: 60, proactivity: 70, clarity: 92,
     engagement: 85, ethicalAlignment: 100, memoryUsage: 45, anticipation: 65
   });
-  const [persona, setPersona] = usePersistentState<PersonaMode>('elara_persona', PersonaMode.PROFESSIONAL);
-
-  // Transient State
-  const [inputValue, setInputValue] = useState('');
-  const [isThinking, setIsThinking] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<ToolMode>(ToolMode.CHAT);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [liveSessionActive, setLiveSessionActive] = useState(false);
-  const [coachingMode, setCoachingMode] = useState(false);
-  const [integrations] = useState<IntegrationStatus>({ google: true, grok: true, github: true });
-  const [activeVideo, setActiveVideo] = useState<YouTubeVideo | null>(null);
+    const [persona, setPersona] = usePersistentState<PersonaMode>('elara_persona', PersonaMode.PROFESSIONAL);
+    const [lastAuditTimestamp, setLastAuditTimestamp] = usePersistentState<number>('elara_last_audit', 0); // Added from remote
   
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (DEMO_API_KEY) {
-       initGemini(DEMO_API_KEY);
-    }
-  }, [persona, knowledgeBase]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Periodic Events
-  /*useEffect(() => {
-    if (!DEMO_API_KEY) return;
-    const featureInterval = setInterval(async () => {
-        const proposal = await generateFeatureProposal();
-        addGrowthEntry('proposal', 'Feature Proposal', proposal);
-    }, 60000);
-    const auditInterval = setInterval(async () => {
-        const audit = await performEthicalAudit();
-        addGrowthEntry('audit', 'Ethical Audit', audit);
-    }, 90000);
-    return () => { clearInterval(featureInterval); clearInterval(auditInterval); };
-  }, []);*/
-
-  const addGrowthEntry = (type: GrowthEntry['type'], title: string, details: string) => {
-    setGrowthLog(prev => [...prev, { id: Date.now().toString(), type, title, timestamp: Date.now(), details }]);
-  };
-
+    // Transient State
+    const [inputValue, setInputValue] = useState('');
+    const [isThinking, setIsThinking] = useState(false);
+    const [selectedTool, setSelectedTool] = useState<ToolMode>(ToolMode.CHAT);
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
+    const [liveSessionActive, setLiveSessionActive] = useState(false);
+    const [coachingMode, setCoachingMode] = useState(false);
+    const [integrations] = useState<IntegrationStatus>({ google: true, grok: true, github: true });
+    const [activeVideo, setActiveVideo] = useState<YouTubeVideo | null>(null);
+  
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+  
+    useEffect(() => {
+      if (DEMO_API_KEY) {
+         initGemini(DEMO_API_KEY);
+      }
+    }, [persona, knowledgeBase]);
+  
+    useEffect(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
+  
+    // Periodic Events Logic (Commented out to avoid API quota issues)
+    /*useEffect(() => {
+      if (!DEMO_API_KEY) return;
+  
+      // 1. Feature Proposals: Keep running frequently as requested (approx every 60s)
+      const featureInterval = setInterval(async () => {
+          const proposal = await generateFeatureProposal();
+          addGrowthEntry('proposal', proposal.title, proposal.description, proposal.technicalDetails);
+      }, 60000);
+  
+      // 2. Ethical Audit: Run Weekly (Check every hour if a week has passed)
+      const runAuditCheck = async () => {
+          const now = Date.now();
+          const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+  
+          // If it's been more than a week OR it's the very first run (0)
+          if (now - lastAuditTimestamp > oneWeekMs || lastAuditTimestamp === 0) {
+              const audit = await performEthicalAudit();
+              addGrowthEntry('audit', 'Weekly Ethical Audit', audit);
+              setLastAuditTimestamp(now);
+          }
+      };
+  
+      // Run check immediately on mount, then set interval
+      runAuditCheck();
+      const auditInterval = setInterval(runAuditCheck, 3600000); // Check every hour
+  
+      return () => { clearInterval(featureInterval); clearInterval(auditInterval); };
+    }, [lastAuditTimestamp]);*/
+  
+    const addGrowthEntry = (type: GrowthEntry['type'], title: string, details: string, technicalDetails?: string) => {
+      setGrowthLog(prev => [...prev, {
+          id: Date.now().toString(),
+          type,
+          title,
+          timestamp: Date.now(),
+          details,
+          technicalDetails
+      }]);
+    };
+  
+    const handleGrowthEntryClick = (entry: GrowthEntry) => {
+        if (entry.type === 'proposal' && entry.technicalDetails) {
+            // If the user clicks a proposal, Elara explains how to implement it
+            setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                role: 'model',
+                content: `### 🛠️ Implementing: ${entry.title}\n\n**Concept:** ${entry.details}\n\n**Technical Guide:**\n${entry.technicalDetails}\n\n*Would you like me to generate the boilerplate code for this?*`,
+                timestamp: Date.now()
+            }]);
+        } else if (entry.type === 'audit') {
+             setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                role: 'model',
+                content: `### ⚖️ Ethical Audit Report\n\n${entry.details}\n\n*Status: Verified and Compliant.*`,
+                timestamp: Date.now()
+            }]);
+        }
+    };
   const handleClearMemory = () => {
     if (window.confirm("Are you sure you want to purge all memory? This cannot be undone.")) {
       localStorage.clear();
@@ -200,6 +242,7 @@ const App: React.FC = () => {
           onPersonaChange={setPersona} 
           growthLog={growthLog}
           onClearMemory={handleClearMemory}
+          onEntryClick={handleGrowthEntryClick}
         />
       </div>
 
@@ -207,13 +250,13 @@ const App: React.FC = () => {
       <div className="flex-1 relative flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 via-slate-950 to-black">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-900/10 via-slate-950/50 to-black pointer-events-none"></div>
         
-        {/* Avatar */}
-        <div className="w-full h-[40%] md:h-[50%] relative z-0">
+        {/* Avatar Area - HEIGHT KEPT REDUCED */}
+        <div className="w-full h-[35%] md:h-[35%] relative z-0">
           <Avatar3D isSpeaking={isThinking} mood={isThinking ? 'thinking' : 'neutral'} />
         </div>
 
-        {/* Chat Area */}
-        <div className="w-full max-w-4xl px-4 pb-6 z-10 flex flex-col h-[60%] md:h-[50%] transition-all duration-500 bg-gradient-to-t from-black via-slate-950/90 to-transparent pt-8">
+        {/* Chat Area - HEIGHT KEPT INCREASED */}
+        <div className="w-full max-w-4xl px-4 pb-6 z-10 flex flex-col h-[65%] md:h-[65%] transition-all duration-500 bg-gradient-to-t from-black via-slate-950/90 to-transparent pt-4">
             
             {/* Messages */}
             <div className="flex-1 overflow-y-auto mb-4 space-y-6 pr-3 custom-scrollbar">
@@ -270,10 +313,10 @@ const App: React.FC = () => {
                 <div className="flex gap-2 px-1">
                     {[
                         { id: ToolMode.CHAT, icon: 'fa-brain', label: 'Chat' },
-                        { id: ToolMode.SEARCH, icon: 'fa-search', label: 'Google Search' },
+                        { id: ToolMode.SEARCH, icon: 'fa-search', label: 'Search' },
                         { id: ToolMode.MAPS, icon: 'fa-map-marker-alt', label: 'Maps' },
                         { id: ToolMode.IMAGE_GEN, icon: 'fa-image', label: 'Imagine' },
-                        { id: ToolMode.VIDEO_GEN, icon: 'fa-video', label: 'Veo Video' },
+                        { id: ToolMode.VIDEO_GEN, icon: 'fa-video', label: 'Veo' },
                     ].map(tool => (
                         <button
                             key={tool.id}
