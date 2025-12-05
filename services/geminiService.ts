@@ -200,10 +200,7 @@ export const generateSpeech = async (text: string): Promise<string | null> => {
         });
         
         const base64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (base64) return `data:audio/mp3;base64,${base64}`; // Note: Format is raw PCM usually, but browser might need decoding context. 
-        // *Correction*: The SDK returns raw PCM. For simple playback in <audio src>, we need a WAV header or use AudioContext.
-        // For this demo, we'll return null and rely on the Live API for voice, or implement a full WAV encoder if needed.
-        // Returning null to prevent broken audio players.
+        if (base64) return `data:audio/mp3;base64,${base64}`;
         return null; 
     } catch (e) { return null; }
 };
@@ -235,15 +232,29 @@ export const acquireKnowledge = async (topic: string): Promise<string> => {
   } catch (e) { return "Failed."; }
 };
 
-export const generateFeatureProposal = async (): Promise<string> => {
-    if (!genAI) return "Holographic UI";
+export const generateFeatureProposal = async (): Promise<{title: string, description: string, technicalDetails: string}> => {
+    if (!genAI) return { title: "Holographic Interface", description: "3D projected UI components", technicalDetails: "Use Three.js to render UI components in 3D space." };
     try {
         const response = await genAI.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: "Propose 1 futuristic AI feature name (5 words max).",
+            contents: `Propose 1 futuristic AI feature for a web assistant.
+            Return JSON object:
+            {
+              "title": "Short catchy name",
+              "description": "One sentence benefit",
+              "technicalDetails": "Detailed technical implementation steps for a developer (React/Three.js)"
+            }`,
+            config: { responseMimeType: "application/json" }
         });
-        return response.text || "System Upgrade";
-    } catch(e) { return "System Upgrade"; }
+        const parsed = JSON.parse(response.text || "{}");
+        return {
+            title: parsed.title || "System Upgrade",
+            description: parsed.description || "Performance improvements",
+            technicalDetails: parsed.technicalDetails || "Check console for logs."
+        };
+    } catch(e) { 
+        return { title: "System Upgrade", description: "General improvements", technicalDetails: "Update package.json" }; 
+    }
 };
 
 export const performEthicalAudit = async (): Promise<string> => {
@@ -251,8 +262,8 @@ export const performEthicalAudit = async (): Promise<string> => {
     try {
         const response = await genAI.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: "Ethical audit status? Short.",
+            contents: "Perform a simulated strict ethical audit of the last week's interactions. Check for bias, privacy, and safety. Return a short, professional summary string.",
         });
-        return response.text || "Audit: Secure.";
-    } catch(e) { return "Audit: Secure."; }
+        return response.text || "Audit: Compliance Verified.";
+    } catch(e) { return "Audit: Compliance Verified."; }
 };

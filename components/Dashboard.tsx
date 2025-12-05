@@ -9,9 +9,10 @@ interface DashboardProps {
   onPersonaChange: (p: PersonaMode) => void;
   growthLog: GrowthEntry[];
   onClearMemory: () => void;
+  onEntryClick: (entry: GrowthEntry) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ metrics, integrations, currentPersona, onPersonaChange, growthLog, onClearMemory }) => {
+const Dashboard: React.FC<DashboardProps> = ({ metrics, integrations, currentPersona, onPersonaChange, growthLog, onClearMemory, onEntryClick }) => {
   const metricData = Object.keys(metrics).map(key => ({
     subject: key.charAt(0).toUpperCase() + key.slice(1),
     A: metrics[key as keyof DetailedMetrics],
@@ -88,16 +89,24 @@ const Dashboard: React.FC<DashboardProps> = ({ metrics, integrations, currentPer
                     <div className="text-center text-slate-600 text-xs py-4 italic">No growth events yet...</div>
                 ) : (
                     growthLog.slice().reverse().map((entry) => (
-                        <div key={entry.id} className="relative pl-4 border-l border-slate-700">
-                            <div className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${
+                        <div 
+                            key={entry.id} 
+                            onClick={() => onEntryClick(entry)}
+                            className="relative pl-4 border-l border-slate-700 group cursor-pointer hover:bg-slate-800/30 rounded-r p-1 transition-colors"
+                            title={entry.type === 'proposal' ? "Click for Implementation Guide" : "Click for details"}
+                        >
+                            <div className={`absolute -left-[5px] top-2 w-2.5 h-2.5 rounded-full ${
                                 entry.type === 'learning' ? 'bg-blue-500' :
-                                entry.type === 'upgrade' ? 'bg-purple-500' : 'bg-emerald-500'
+                                entry.type === 'upgrade' ? 'bg-purple-500' : 
+                                entry.type === 'proposal' ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
                             }`}></div>
                             <div className="mb-1">
-                                <span className="text-xs font-bold text-white block">{entry.title}</span>
+                                <span className="text-xs font-bold text-white block group-hover:text-emerald-400 transition-colors">
+                                    {entry.title} {entry.type === 'proposal' && <i className="fas fa-code text-[8px] ml-1 opacity-50"></i>}
+                                </span>
                                 <span className="text-[9px] text-slate-500">{new Date(entry.timestamp).toLocaleTimeString()}</span>
                             </div>
-                            <p className="text-[10px] text-slate-400 leading-relaxed">{entry.details}</p>
+                            <p className="text-[10px] text-slate-400 leading-relaxed group-hover:text-slate-300">{entry.details}</p>
                         </div>
                     ))
                 )}

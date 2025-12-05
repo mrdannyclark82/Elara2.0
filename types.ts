@@ -72,4 +72,5 @@ export interface GrowthEntry {
   title: string;
   timestamp: number;
   details: string;
+  technicalDetails?: string; // Implementation guide for proposals
 }

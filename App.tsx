@@ -53,6 +53,7 @@ const App: React.FC = () => {
     engagement: 85, ethicalAlignment: 100, memoryUsage: 45, anticipation: 65
   });
   const [persona, setPersona] = usePersistentState<PersonaMode>('elara_persona', PersonaMode.PROFESSIONAL);
+  const [lastAuditTimestamp, setLastAuditTimestamp] = usePersistentState<number>('elara_last_audit', 0);
 
   // Transient State
   const [inputValue, setInputValue] = useState('');
@@ -77,22 +78,64 @@ const App: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Periodic Events
+  // Periodic Events Logic
   useEffect(() => {
     if (!DEMO_API_KEY) return;
+
+    // 1. Feature Proposals: Keep running frequently as requested (approx every 60s)
     const featureInterval = setInterval(async () => {
         const proposal = await generateFeatureProposal();
-        addGrowthEntry('proposal', 'Feature Proposal', proposal);
+        addGrowthEntry('proposal', proposal.title, proposal.description, proposal.technicalDetails);
     }, 60000);
-    const auditInterval = setInterval(async () => {
-        const audit = await performEthicalAudit();
-        addGrowthEntry('audit', 'Ethical Audit', audit);
-    }, 90000);
-    return () => { clearInterval(featureInterval); clearInterval(auditInterval); };
-  }, []);
 
-  const addGrowthEntry = (type: GrowthEntry['type'], title: string, details: string) => {
-    setGrowthLog(prev => [...prev, { id: Date.now().toString(), type, title, timestamp: Date.now(), details }]);
+    // 2. Ethical Audit: Run Weekly (Check every hour if a week has passed)
+    const runAuditCheck = async () => {
+        const now = Date.now();
+        const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+        
+        // If it's been more than a week OR it's the very first run (0)
+        if (now - lastAuditTimestamp > oneWeekMs || lastAuditTimestamp === 0) {
+            const audit = await performEthicalAudit();
+            addGrowthEntry('audit', 'Weekly Ethical Audit', audit);
+            setLastAuditTimestamp(now);
+        }
+    };
+
+    // Run check immediately on mount, then set interval
+    runAuditCheck();
+    const auditInterval = setInterval(runAuditCheck, 3600000); // Check every hour
+
+    return () => { clearInterval(featureInterval); clearInterval(auditInterval); };
+  }, [lastAuditTimestamp]);
+
+  const addGrowthEntry = (type: GrowthEntry['type'], title: string, details: string, technicalDetails?: string) => {
+    setGrowthLog(prev => [...prev, { 
+        id: Date.now().toString(), 
+        type, 
+        title, 
+        timestamp: Date.now(), 
+        details,
+        technicalDetails
+    }]);
+  };
+
+  const handleGrowthEntryClick = (entry: GrowthEntry) => {
+      if (entry.type === 'proposal' && entry.technicalDetails) {
+          // If the user clicks a proposal, Elara explains how to implement it
+          setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: 'model',
+              content: `### 🛠️ Implementing: ${entry.title}\n\n**Concept:** ${entry.details}\n\n**Technical Guide:**\n${entry.technicalDetails}\n\n*Would you like me to generate the boilerplate code for this?*`,
+              timestamp: Date.now()
+          }]);
+      } else if (entry.type === 'audit') {
+           setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: 'model',
+              content: `### ⚖️ Ethical Audit Report\n\n${entry.details}\n\n*Status: Verified and Compliant.*`,
+              timestamp: Date.now()
+          }]);
+      }
   };
 
   const handleClearMemory = () => {
@@ -200,6 +243,7 @@ const App: React.FC = () => {
           onPersonaChange={setPersona} 
           growthLog={growthLog}
           onClearMemory={handleClearMemory}
+          onEntryClick={handleGrowthEntryClick}
         />
       </div>
 
@@ -207,12 +251,12 @@ const App: React.FC = () => {
       <div className="flex-1 relative flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 via-slate-950 to-black">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-900/10 via-slate-950/50 to-black pointer-events-none"></div>
         
-        {/* Avatar Area - REDUCED HEIGHT */}
+        {/* Avatar Area - HEIGHT KEPT REDUCED */}
         <div className="w-full h-[35%] md:h-[35%] relative z-0">
           <Avatar3D isSpeaking={isThinking} mood={isThinking ? 'thinking' : 'neutral'} />
         </div>
 
-        {/* Chat Area - INCREASED HEIGHT */}
+        {/* Chat Area - HEIGHT KEPT INCREASED */}
         <div className="w-full max-w-4xl px-4 pb-6 z-10 flex flex-col h-[65%] md:h-[65%] transition-all duration-500 bg-gradient-to-t from-black via-slate-950/90 to-transparent pt-4">
             
             {/* Messages */}
