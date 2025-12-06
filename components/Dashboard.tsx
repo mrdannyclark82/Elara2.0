@@ -10,9 +10,23 @@ interface DashboardProps {
   growthLog: GrowthEntry[];
   onClearMemory: () => void;
   onEntryClick: (entry: GrowthEntry) => void;
+  memoryStats?: any;
+  onExportMemory?: () => void;
+  onPruneMemories?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ metrics, integrations, currentPersona, onPersonaChange, growthLog, onClearMemory, onEntryClick }) => {
+const Dashboard: React.FC<DashboardProps> = ({ 
+  metrics, 
+  integrations, 
+  currentPersona, 
+  onPersonaChange, 
+  growthLog, 
+  onClearMemory, 
+  onEntryClick,
+  memoryStats,
+  onExportMemory,
+  onPruneMemories
+}) => {
   const metricData = Object.keys(metrics).map(key => ({
     subject: key.charAt(0).toUpperCase() + key.slice(1),
     A: metrics[key as keyof DetailedMetrics],
@@ -113,6 +127,80 @@ const Dashboard: React.FC<DashboardProps> = ({ metrics, integrations, currentPer
             </div>
           </div>
       </div>
+
+      {/* Memory Database Section */}
+      {memoryStats && (
+        <div className="p-4 border-t border-slate-700 bg-slate-900/50 flex-shrink-0">
+          <h3 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">External Memory Database</h3>
+          <div className="space-y-2 mb-3">
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="text-slate-500">Total Memories:</span>
+              <span className="text-emerald-400 font-bold">{memoryStats.totalMemories}</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="text-slate-500">Avg Importance:</span>
+              <span className="text-blue-400 font-bold">{memoryStats.avgImportance.toFixed(1)}/10</span>
+            </div>
+            {memoryStats.topTags.length > 0 && (
+              <div className="mt-2">
+                <span className="text-[9px] text-slate-500 block mb-1">Top Tags:</span>
+                <div className="flex flex-wrap gap-1">
+                  {memoryStats.topTags.slice(0, 5).map((tag: any) => (
+                    <span key={tag.tag} className="text-[8px] bg-slate-800 px-1.5 py-0.5 rounded border border-slate-600 text-slate-400">
+                      {tag.tag} ({tag.count})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            {onExportMemory && (
+              <button 
+                onClick={onExportMemory}
+                className="w-full py-1.5 bg-blue-900/10 hover:bg-blue-900/30 text-blue-400 border border-blue-900/30 rounded flex items-center justify-center gap-2 text-[10px] transition-colors"
+              >
+                <i className="fas fa-download"></i> Export DB
+              </button>
+            )}
+            <input 
+              type="file" 
+              ref={(el) => el && ((window as any).memoryImportRef = el)} 
+              style={{ display: 'none' }} 
+              accept=".json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  file.text().then(async (text) => {
+                    try {
+                      // This will be handled by the parent component's import handler
+                      const event = new CustomEvent('memoryImport', { detail: text });
+                      window.dispatchEvent(event);
+                    } catch (err) {
+                      console.error('Import error:', err);
+                    }
+                  });
+                }
+                e.target.value = ''; // Reset input
+              }}
+            />
+            <button 
+              onClick={() => (window as any).memoryImportRef?.click()}
+              className="w-full py-1.5 bg-green-900/10 hover:bg-green-900/30 text-green-400 border border-green-900/30 rounded flex items-center justify-center gap-2 text-[10px] transition-colors"
+            >
+              <i className="fas fa-upload"></i> Import DB
+            </button>
+            {onPruneMemories && (
+              <button 
+                onClick={onPruneMemories}
+                className="w-full py-1.5 bg-orange-900/10 hover:bg-orange-900/30 text-orange-400 border border-orange-900/30 rounded flex items-center justify-center gap-2 text-[10px] transition-colors"
+              >
+                <i className="fas fa-broom"></i> Prune Old
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="p-3 border-t border-slate-700 bg-slate-900/50 flex-shrink-0">
            <button 

@@ -50,7 +50,26 @@ export const processUserRequest = async (
     // Limit Knowledge Base to last 20 entries to manage token usage
     const recentKB = knowledgeBase.slice(-20);
     const kbString = recentKB.length > 0 ? recentKB.join("\n- ") : "Standard Data";
-    const systemInstruction = `You are Elara. Persona: ${persona}. Knowledge: ${kbString}. Return answers in Markdown.`;
+    const systemInstruction = `You are Elara, an advanced AI virtual assistant. 
+
+Persona: ${persona}. 
+
+Your Capabilities:
+- Chat: Conversational AI with deep context understanding
+- Search: Web search powered by Google
+- Maps: Location services and navigation
+- Imagine: Image generation using Gemini 3 Pro Image
+- Veo: Video generation capabilities
+- Sandbox: Built-in IDE where you can code together with users, with GitHub integration
+- Creative Studio: Art generation and management platform
+- Screen Share: Ability to see and analyze user's screen in real-time
+- Thought Process: You can show your internal reasoning process
+- Adaptive Persona: In Adaptive mode, you adjust your personality based on conversation context
+- Proactive Background Generation: You automatically create ambient backgrounds
+
+Knowledge Base: ${kbString}
+
+Always be helpful, accurate, and aware of your full toolkit. Return answers in Markdown.`;
 
     // Prepare Contents (Multimodal)
     const parts: any[] = [{ text }];
@@ -266,4 +285,180 @@ export const performEthicalAudit = async (): Promise<string> => {
         });
         return response.text || "Audit: Compliance Verified.";
     } catch(e) { return "Audit: Compliance Verified."; }
+};
+
+// Proactive Web Research for Future Features
+export const proactiveWebResearch = async (): Promise<{
+    title: string;
+    summary: string;
+    findings: string;
+    sources: Array<{ title: string; uri: string }>;
+}> => {
+    if (!genAI) return {
+        title: "Research Unavailable",
+        summary: "AI not initialized",
+        findings: "Unable to perform research",
+        sources: []
+    };
+
+    try {
+        const researchTopics = [
+            "latest AI assistant features 2025",
+            "emerging AI capabilities for virtual assistants",
+            "new multimodal AI technologies",
+            "innovative chatbot features",
+            "AI voice assistant advancements"
+        ];
+        
+        const randomTopic = researchTopics[Math.floor(Math.random() * researchTopics.length)];
+        
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { 
+                parts: [{ 
+                    text: `Research "${randomTopic}" and find innovative features that could be added to an AI virtual assistant. Focus on practical, implementable features. Provide a concise summary with specific feature ideas.` 
+                }] 
+            },
+            config: {
+                tools: [{ googleSearch: {} }],
+                temperature: 0.8
+            }
+        });
+
+        const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+            ?.map((chunk: any) => {
+                if (chunk.web?.uri) {
+                    return { title: chunk.web.title || 'Web Source', uri: chunk.web.uri };
+                }
+                return null;
+            })
+            .filter((s: any) => s !== null) || [];
+
+        return {
+            title: `Research: ${randomTopic}`,
+            summary: `Proactive web research on emerging AI capabilities`,
+            findings: response.text || "No findings available",
+            sources: sources
+        };
+
+    } catch (e) {
+        console.error("Proactive research error:", e);
+        return {
+            title: "Research Error",
+            summary: "Unable to complete research",
+            findings: "An error occurred during web research",
+            sources: []
+        };
+    }
+};
+
+// Code Generation for Sandbox
+export const generateCode = async (prompt: string, language: string): Promise<string> => {
+    if (!genAI) return '// AI not initialized';
+    
+    try {
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Generate ${language} code for: ${prompt}. Return ONLY the code, no explanations or markdown formatting.`,
+            config: { temperature: 0.7 }
+        });
+        
+        return response.text || '// Generation failed';
+    } catch (e) {
+        console.error('Code generation error:', e);
+        return '// Error generating code';
+    }
+};
+
+// Analyze Screen Share Image
+export const analyzeScreenShare = async (imageData: string): Promise<string> => {
+    if (!genAI) return 'AI not initialized';
+    
+    try {
+        const response = await genAI.models.generateContent({
+            model: 'gemini-3-pro-preview',
+            contents: {
+                parts: [
+                    { text: 'Analyze this screen capture. Describe what you see, identify any issues, and provide helpful insights.' },
+                    { inlineData: { mimeType: 'image/png', data: imageData } }
+                ]
+            },
+            config: { temperature: 0.7 }
+        });
+        
+        return response.text || 'Unable to analyze screen';
+    } catch (e) {
+        console.error('Screen analysis error:', e);
+        return 'Error analyzing screen';
+    }
+};
+
+// Generate Background Image (Proactive)
+export const generateBackgroundImage = async (): Promise<string | null> => {
+    if (!genAI) return null;
+    
+    const themes = [
+        'abstract cosmic nebula with flowing energy',
+        'futuristic digital landscape with neon accents',
+        'serene gradient waves in purple and blue',
+        'geometric patterns with holographic effects',
+        'ethereal light particles in deep space'
+    ];
+    
+    const prompt = themes[Math.floor(Math.random() * themes.length)];
+    
+    try {
+        const response = await genAI.models.generateContent({
+            model: 'gemini-3-pro-image-preview',
+            contents: { parts: [{ text: prompt }] },
+            config: {
+                imageConfig: { aspectRatio: "16:9", imageSize: "1K" }
+            }
+        });
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+                return `data:image/png;base64,${part.inlineData.data}`;
+            }
+        }
+        
+        return null;
+    } catch (e) {
+        console.error('Background generation error:', e);
+        return null;
+    }
+};
+
+// Export a service object for use in components
+export const geminiService = {
+    generateCode,
+    analyzeScreenShare,
+    generateBackgroundImage,
+    generateImage: async (prompt: string, aspectRatio: string, model: string): Promise<string | null> => {
+        if (!genAI) return null;
+        
+        try {
+            const response = await genAI.models.generateContent({
+                model,
+                contents: { parts: [{ text: prompt }] },
+                config: {
+                    imageConfig: { 
+                        aspectRatio: aspectRatio as any, 
+                        imageSize: "1K" 
+                    }
+                }
+            });
+
+            for (const part of response.candidates?.[0]?.content?.parts || []) {
+                if (part.inlineData) {
+                    return `data:image/png;base64,${part.inlineData.data}`;
+                }
+            }
+            
+            return null;
+        } catch (e) {
+            console.error('Image generation error:', e);
+            return null;
+        }
+    }
 };

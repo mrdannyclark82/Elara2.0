@@ -9,12 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "recharts": "^3.5.1",
-    "@react-three/fiber": "^9.4.2",
+    "@google/genai": "^1.31.0",
     "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.2",
+    "@types/prismjs": "^1.26.5",
+    "prettier": "^3.7.4",
+    "prismjs": "^1.30.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "@google/genai": "^1.31.0",
+    "react-simple-code-editor": "^0.14.1",
+    "recharts": "^3.5.1",
     "three": "^0.181.2"
   },
   "devDependencies": {

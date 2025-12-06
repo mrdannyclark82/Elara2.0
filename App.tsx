@@ -3,14 +3,33 @@ import Dashboard from './components/Dashboard';
 import Avatar3D from './components/Avatar3D';
 import YouTubePlayer from './components/YouTubePlayer';
 import LiveSession from './components/LiveSession';
+import Sandbox from './components/Sandbox';
+import CreativeStudio from './components/CreativeStudio';
+import ThoughtLogger from './components/ThoughtLogger';
 import { 
   initGemini, 
   processUserRequest,
   evaluateInteraction, 
   acquireKnowledge, 
   generateFeatureProposal, 
-  performEthicalAudit 
+  performEthicalAudit,
+  proactiveWebResearch,
+  geminiService
 } from './services/geminiService';
+import { 
+  initMemoryDB, 
+  storeMemory, 
+  queryMemories, 
+  searchMemories, 
+  getMemoryStats,
+  getUserProfile,
+  saveUserProfile,
+  exportMemoryData,
+  importMemoryData,
+  pruneMemories,
+  type MemoryEntry,
+  type UserProfile
+} from './services/memoryDatabase';
 import { Message, PersonaMode, DetailedMetrics, IntegrationStatus, YouTubeVideo, GrowthEntry, ToolMode, Attachment } from './types';
 
 const DEMO_API_KEY = process.env.API_KEY || '';
@@ -41,7 +60,7 @@ function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch
 const App: React.FC = () => {
   // Persistent Chat State
   const [messages, setMessages] = usePersistentState<Message[]>('elara_messages', [
-    { id: '1', role: 'model', content: "Systems Online. Neural Toolkit Active. I can search, generate images, create videos, and analyze your files. How can I help?", timestamp: Date.now() }
+    { id: '1', role: 'model', content: "Systems Online. Neural Toolkit Active. I can search, generate images, create videos, code with you in the Sandbox, and create art. How can I help?", timestamp: Date.now() }
   ]);
   
   // Persistent Advanced State
@@ -52,31 +71,127 @@ const App: React.FC = () => {
     relevance: 88, humor: 60, proactivity: 70, clarity: 92,
     engagement: 85, ethicalAlignment: 100, memoryUsage: 45, anticipation: 65
   });
-    const [persona, setPersona] = usePersistentState<PersonaMode>('elara_persona', PersonaMode.PROFESSIONAL);
-    const [lastAuditTimestamp, setLastAuditTimestamp] = usePersistentState<number>('elara_last_audit', 0); // Added from remote
+    const [persona, setPersona] = usePersistentState<PersonaMode>('elara_persona', PersonaMode.ADAPTIVE);
+    const [lastAuditTimestamp, setLastAuditTimestamp] = usePersistentState<number>('elara_last_audit', 0);
+    const [lastResearchTimestamp, setLastResearchTimestamp] = usePersistentState<number>('elara_last_research', 0);
+    const [backgroundImage, setBackgroundImage] = usePersistentState<string>('elara_background', '');
   
     // Transient State
     const [inputValue, setInputValue] = useState('');
     const [isThinking, setIsThinking] = useState(false);
+    const [thoughtProcess, setThoughtProcess] = useState('');
+    const [memoryStats, setMemoryStats] = useState<any>(null);
+    const [memoryDBReady, setMemoryDBReady] = useState(false);
     const [selectedTool, setSelectedTool] = useState<ToolMode>(ToolMode.CHAT);
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [liveSessionActive, setLiveSessionActive] = useState(false);
     const [coachingMode, setCoachingMode] = useState(false);
     const [integrations] = useState<IntegrationStatus>({ google: true, grok: true, github: true });
     const [activeVideo, setActiveVideo] = useState<YouTubeVideo | null>(null);
+    
+    // New Feature States
+    const [sandboxOpen, setSandboxOpen] = useState(false);
+    const [sandboxCode, setSandboxCode] = useState('<!-- Start coding here -->');
+    const [creativeStudioOpen, setCreativeStudioOpen] = useState(false);
+    const [screenShareActive, setScreenShareActive] = useState(false);
+    const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const importInputRef = useRef<HTMLInputElement>(null);
   
     useEffect(() => {
       if (DEMO_API_KEY) {
          initGemini(DEMO_API_KEY);
       }
+      
+      // Initialize Memory Database
+      initMemoryDB().then(() => {
+        setMemoryDBReady(true);
+        refreshMemoryStats();
+        console.log('✅ External Memory Database initialized');
+      }).catch(err => {
+        console.error('Failed to initialize Memory DB:', err);
+      });
+
+      // Listen for memory import events
+      const handleMemoryImport = async (e: Event) => {
+        const customEvent = e as CustomEvent;
+        try {
+          await importMemoryData(customEvent.detail);
+          await refreshMemoryStats();
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'model',
+            content: '📥 Memory database imported successfully.',
+            timestamp: Date.now()
+          }]);
+        } catch (err) {
+          console.error('Import failed:', err);
+        }
+      };
+
+      window.addEventListener('memoryImport', handleMemoryImport);
+      return () => window.removeEventListener('memoryImport', handleMemoryImport);
     }, [persona, knowledgeBase]);
+    
+    const refreshMemoryStats = async () => {
+      try {
+        const stats = await getMemoryStats();
+        setMemoryStats(stats);
+      } catch (err) {
+        console.error('Error fetching memory stats:', err);
+      }
+    };
   
     useEffect(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
+  
+    // Proactive Background Generation (every 10 minutes if enabled)
+    useEffect(() => {
+      if (!DEMO_API_KEY) return;
+      
+      const interval = setInterval(async () => {
+        const bgUrl = await geminiService.generateBackgroundImage();
+        if (bgUrl) {
+          setBackgroundImage(bgUrl);
+          addGrowthEntry('learning', 'Background Generated', 'Proactively created a new ambient background');
+        }
+      }, 600000); // 10 minutes
+      
+      return () => clearInterval(interval);
+    }, []);
+    
+    // Adaptive Persona - Analyze conversation patterns
+    useEffect(() => {
+      if (persona !== PersonaMode.ADAPTIVE || messages.length < 10) return;
+      
+      const analyzeConversation = async () => {
+        const recentMessages = messages.slice(-10);
+        const userMessages = recentMessages.filter(m => m.role === 'user').map(m => m.content).join(' ');
+        
+        // Simple heuristics for persona adaptation
+        if (userMessages.match(/lol|haha|funny|joke/gi)) {
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'system',
+            content: '🎭 Adapting to Humorous mode',
+            timestamp: Date.now()
+          }]);
+        } else if (userMessages.match(/help|please|worried|concerned/gi)) {
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'system',
+            content: '🎭 Adapting to Empathetic mode',
+            timestamp: Date.now()
+          }]);
+        }
+      };
+      
+      const timer = setTimeout(analyzeConversation, 5000);
+      return () => clearTimeout(timer);
+    }, [messages, persona]);
   
     // Periodic Events Logic (Commented out to avoid API quota issues)
     /*useEffect(() => {
@@ -100,22 +215,41 @@ const App: React.FC = () => {
               setLastAuditTimestamp(now);
           }
       };
+
+      // 3. Proactive Web Research: Run every 2 hours
+      const runResearchCheck = async () => {
+          const now = Date.now();
+          const twoHoursMs = 2 * 60 * 60 * 1000;
+
+          if (now - lastResearchTimestamp > twoHoursMs || lastResearchTimestamp === 0) {
+              const research = await proactiveWebResearch();
+              addGrowthEntry('research', research.title, research.findings, undefined, research.sources);
+              setLastResearchTimestamp(now);
+          }
+      };
   
-      // Run check immediately on mount, then set interval
+      // Run checks immediately on mount, then set intervals
       runAuditCheck();
+      runResearchCheck();
       const auditInterval = setInterval(runAuditCheck, 3600000); // Check every hour
+      const researchInterval = setInterval(runResearchCheck, 3600000); // Check every hour
   
-      return () => { clearInterval(featureInterval); clearInterval(auditInterval); };
-    }, [lastAuditTimestamp]);*/
+      return () => { 
+          clearInterval(featureInterval); 
+          clearInterval(auditInterval); 
+          clearInterval(researchInterval); 
+      };
+    }, [lastAuditTimestamp, lastResearchTimestamp]);*/
   
-    const addGrowthEntry = (type: GrowthEntry['type'], title: string, details: string, technicalDetails?: string) => {
+    const addGrowthEntry = (type: GrowthEntry['type'], title: string, details: string, technicalDetails?: string, sources?: Array<{ title: string; uri: string }>) => {
       setGrowthLog(prev => [...prev, {
           id: Date.now().toString(),
           type,
           title,
           timestamp: Date.now(),
           details,
-          technicalDetails
+          technicalDetails,
+          sources
       }]);
     };
   
@@ -135,12 +269,80 @@ const App: React.FC = () => {
                 content: `### ⚖️ Ethical Audit Report\n\n${entry.details}\n\n*Status: Verified and Compliant.*`,
                 timestamp: Date.now()
             }]);
+        } else if (entry.type === 'research') {
+             setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                role: 'model',
+                content: `### 🔍 ${entry.title}\n\n${entry.details}\n\n*Discovered through proactive web browsing.*`,
+                timestamp: Date.now(),
+                groundingSources: entry.sources
+            }]);
         }
     };
   const handleClearMemory = () => {
     if (window.confirm("Are you sure you want to purge all memory? This cannot be undone.")) {
       localStorage.clear();
       window.location.reload();
+    }
+  };
+  
+  const handleExportMemory = async () => {
+    try {
+      const data = await exportMemoryData();
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `elara-memory-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'model',
+        content: '💾 Memory database exported successfully.',
+        timestamp: Date.now()
+      }]);
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
+  };
+  
+  const handleImportMemory = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      const text = await file.text();
+      await importMemoryData(text);
+      await refreshMemoryStats();
+      
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'model',
+        content: '📥 Memory database imported successfully.',
+        timestamp: Date.now()
+      }]);
+    } catch (err) {
+      console.error('Import failed:', err);
+    }
+  };
+  
+  const handlePruneMemories = async () => {
+    if (window.confirm('Remove memories older than 90 days with importance < 5?')) {
+      try {
+        const deleted = await pruneMemories(90, 5);
+        await refreshMemoryStats();
+        
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          role: 'model',
+          content: `🧹 Pruned ${deleted} old memories from database.`,
+          timestamp: Date.now()
+        }]);
+      } catch (err) {
+        console.error('Prune failed:', err);
+      }
     }
   };
 
@@ -160,6 +362,52 @@ const App: React.FC = () => {
       };
       reader.readAsDataURL(file);
   };
+  
+  const handleScreenShare = async () => {
+    if (screenShareActive && screenStream) {
+      screenStream.getTracks().forEach(track => track.stop());
+      setScreenStream(null);
+      setScreenShareActive(false);
+      return;
+    }
+    
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: { mediaSource: 'screen' } 
+      });
+      setScreenStream(stream);
+      setScreenShareActive(true);
+      
+      // Capture screenshot for analysis
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+      
+      setTimeout(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(video, 0, 0);
+        const imageData = canvas.toDataURL('image/png').split(',')[1];
+        
+        // Analyze with Gemini
+        setIsThinking(true);
+        geminiService.analyzeScreenShare(imageData).then(analysis => {
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'model',
+            content: `📺 Screen Analysis:\n\n${analysis}`,
+            timestamp: Date.now()
+          }]);
+          setIsThinking(false);
+        });
+      }, 1000);
+      
+    } catch (err) {
+      console.error('Screen share error:', err);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() && attachments.length === 0) return;
@@ -170,6 +418,39 @@ const App: React.FC = () => {
     
     setInputValue('');
     setAttachments([]); // Clear attachments after sending
+    
+    // Tool-specific shortcuts
+    if (userText.toLowerCase() === 'open sandbox') {
+      setSandboxOpen(true);
+      setMessages(prev => [...prev, { 
+        id: Date.now().toString(), 
+        role: 'user', 
+        content: userText, 
+        timestamp: Date.now() 
+      }, { 
+        id: (Date.now()+1).toString(), 
+        role: 'model', 
+        content: "🛠️ Sandbox IDE opened. Let's build something together!", 
+        timestamp: Date.now() 
+      }]);
+      return;
+    }
+    
+    if (userText.toLowerCase() === 'open studio') {
+      setCreativeStudioOpen(true);
+      setMessages(prev => [...prev, { 
+        id: Date.now().toString(), 
+        role: 'user', 
+        content: userText, 
+        timestamp: Date.now() 
+      }, { 
+        id: (Date.now()+1).toString(), 
+        role: 'model', 
+        content: "🎨 Creative Studio opened. Let's create some art!", 
+        timestamp: Date.now() 
+      }]);
+      return;
+    }
     
     // Coaching Mode Trap
     if (userText.toLowerCase() === 'upgrade me') {
@@ -193,19 +474,76 @@ const App: React.FC = () => {
     }
     setMessages(prev => [...prev, userMsg]);
     setIsThinking(true);
+    setThoughtProcess('Analyzing request and context...');
 
     // Process Request
     try {
+        // Simulate thought process
+        setTimeout(() => setThoughtProcess('Selecting optimal model and tools...'), 500);
+        setTimeout(() => setThoughtProcess('Generating response with context awareness...'), 1000);
+        
         const result = await processUserRequest(userText, currentTool, currentAttachments, persona, knowledgeBase);
-        setMessages(prev => [...prev, { ...result, id: Date.now().toString() } as Message]);
+        
+        // Add thought process to result
+        const finalMessage = { 
+          ...result, 
+          id: Date.now().toString(),
+          thoughtProcess: thoughtProcess 
+        } as Message;
+        
+        setMessages(prev => [...prev, finalMessage]);
+        setThoughtProcess('');
+
+        // Store in External Memory Database
+        if (memoryDBReady && result.content) {
+            // Store user message
+            await storeMemory({
+                type: 'conversation',
+                content: userText,
+                metadata: {
+                    timestamp: Date.now(),
+                    importance: 5,
+                    tags: [currentTool, 'user-message'],
+                    source: 'user-input'
+                }
+            });
+            
+            // Store assistant response
+            await storeMemory({
+                type: 'conversation',
+                content: result.content,
+                metadata: {
+                    timestamp: Date.now(),
+                    importance: 6,
+                    tags: [currentTool, 'assistant-response'],
+                    source: 'gemini-api'
+                }
+            });
+            
+            refreshMemoryStats();
+        }
 
         // Self Monitoring & Learning
         if (DEMO_API_KEY && result.content) {
-            evaluateInteraction(userText, result.content).then(newMetrics => {
+            evaluateInteraction(userText, result.content).then(async (newMetrics) => {
                 if (newMetrics.accuracy && newMetrics.accuracy < 90) {
-                     acquireKnowledge(userText).then(summary => {
+                     acquireKnowledge(userText).then(async (summary) => {
                          setKnowledgeBase(prev => [...prev, summary]);
                          addGrowthEntry('learning', 'Gap Detected', `Learned: ${summary}`);
+                         
+                         // Store knowledge in external DB
+                         if (memoryDBReady) {
+                             await storeMemory({
+                                 type: 'knowledge',
+                                 content: summary,
+                                 metadata: {
+                                     timestamp: Date.now(),
+                                     importance: 8,
+                                     tags: ['learning', 'knowledge-gap'],
+                                     source: 'self-learning'
+                                 }
+                             });
+                         }
                      });
                 }
                 setMetrics(prev => ({ ...prev, ...newMetrics }));
@@ -243,11 +581,20 @@ const App: React.FC = () => {
           growthLog={growthLog}
           onClearMemory={handleClearMemory}
           onEntryClick={handleGrowthEntryClick}
+          memoryStats={memoryStats}
+          onExportMemory={handleExportMemory}
+          onPruneMemories={handlePruneMemories}
         />
       </div>
 
       {/* Main Interface */}
       <div className="flex-1 relative flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 via-slate-950 to-black">
+        {backgroundImage && (
+          <div 
+            className="absolute inset-0 bg-cover bg-center opacity-20 pointer-events-none transition-opacity duration-1000"
+            style={{ backgroundImage: `url(${backgroundImage})` }}
+          />
+        )}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-900/10 via-slate-950/50 to-black pointer-events-none"></div>
         
         {/* Avatar Area - HEIGHT KEPT REDUCED */}
@@ -260,6 +607,11 @@ const App: React.FC = () => {
             
             {/* Messages */}
             <div className="flex-1 overflow-y-auto mb-4 space-y-6 pr-3 custom-scrollbar">
+                {/* Thought Logger */}
+                {isThinking && thoughtProcess && (
+                    <ThoughtLogger thoughtText={thoughtProcess} isThinking={isThinking} />
+                )}
+                
                 {messages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[85%] p-5 rounded-3xl backdrop-blur-xl border shadow-lg ${
@@ -355,6 +707,27 @@ const App: React.FC = () => {
                         />
                         
                         <div className="flex items-center gap-2 pr-3 border-l border-slate-800 pl-3">
+                            <button 
+                                onClick={() => setSandboxOpen(true)} 
+                                className="text-purple-400 hover:text-purple-300 transition-colors" 
+                                title="Open Sandbox IDE"
+                            >
+                                <i className="fas fa-code"></i>
+                            </button>
+                            <button 
+                                onClick={() => setCreativeStudioOpen(true)} 
+                                className="text-pink-400 hover:text-pink-300 transition-colors" 
+                                title="Open Creative Studio"
+                            >
+                                <i className="fas fa-palette"></i>
+                            </button>
+                            <button 
+                                onClick={handleScreenShare} 
+                                className={`${screenShareActive ? 'text-green-400 animate-pulse' : 'text-blue-400'} hover:text-blue-300 transition-colors`} 
+                                title={screenShareActive ? "Stop Screen Share" : "Share Screen"}
+                            >
+                                <i className="fas fa-desktop"></i>
+                            </button>
                             <button onClick={() => setLiveSessionActive(true)} className="text-red-400 hover:text-red-300 transition-colors animate-pulse" title="Start Live Voice Session">
                                 <i className="fas fa-microphone-lines"></i>
                             </button>
@@ -373,6 +746,30 @@ const App: React.FC = () => {
             </div>
         </div>
       </div>
+      
+      {/* Sandbox IDE */}
+      {sandboxOpen && (
+        <div className="fixed inset-0 z-50">
+          <Sandbox 
+            isOpen={sandboxOpen}
+            onClose={() => setSandboxOpen(false)}
+            initialCode={sandboxCode}
+            onDiscuss={(code) => {
+              setSandboxCode(code);
+              setSandboxOpen(false);
+              setInputValue(`Review this code:\n\`\`\`\n${code}\n\`\`\``);
+            }}
+          />
+        </div>
+      )}
+      
+      {/* Creative Studio */}
+      <CreativeStudio 
+        isOpen={creativeStudioOpen}
+        onClose={() => setCreativeStudioOpen(false)}
+        onSetBackground={(url) => setBackgroundImage(url)}
+      />
+      
       <YouTubePlayer video={activeVideo} onClose={() => setActiveVideo(null)} />
     </div>
   );

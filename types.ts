@@ -3,7 +3,8 @@ export enum PersonaMode {
   CASUAL = 'Casual',
   EMPATHETIC = 'Empathetic',
   HUMOROUS = 'Humorous',
-  MOTIVATIONAL = 'Motivational'
+  MOTIVATIONAL = 'Motivational',
+  ADAPTIVE = 'Adaptive'
 }
 
 export enum ToolMode {
@@ -11,7 +12,9 @@ export enum ToolMode {
   SEARCH = 'search',
   MAPS = 'maps',
   IMAGE_GEN = 'image_gen',
-  VIDEO_GEN = 'video_gen'
+  VIDEO_GEN = 'video_gen',
+  SANDBOX = 'sandbox',
+  CREATIVE = 'creative'
 }
 
 export interface Attachment {
@@ -31,6 +34,7 @@ export interface Message {
   content: string;
   timestamp: number;
   thinking?: boolean;
+  thoughtProcess?: string;
   
   // Rich Content
   imageUri?: string;
@@ -68,9 +72,10 @@ export interface YouTubeVideo {
 
 export interface GrowthEntry {
   id: string;
-  type: 'learning' | 'upgrade' | 'audit' | 'proposal';
+  type: 'learning' | 'upgrade' | 'audit' | 'proposal' | 'research';
   title: string;
   timestamp: number;
   details: string;
   technicalDetails?: string; // Implementation guide for proposals
+  sources?: GroundingSource[]; // Web sources for research entries
 }
