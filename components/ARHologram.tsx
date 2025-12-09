@@ -4,12 +4,30 @@ import { OrbitControls, Sphere, Box, Line, Text } from '@react-three/drei';
 import { EffectComposer, Bloom, Noise, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
+/**
+ * AR Hologram Component
+ * 
+ * A cyberpunk-themed augmented reality hologram interface featuring:
+ * - Desk grid anchor for spatial reference
+ * - Floating holographic avatar with wireframe aesthetic
+ * - Interactive floating UI widgets
+ * - Neon blue/purple lighting with bloom effects
+ * - Glitch animations for holographic feel
+ * - Orbit controls for user interaction
+ * 
+ * Built with React Three Fiber, Drei, and Postprocessing
+ */
+
 interface ARHologramProps {
   isActive?: boolean;
   onClose?: () => void;
 }
 
-// Desk Grid Anchor - Cyberpunk style grid
+/**
+ * DeskGrid Component
+ * Creates a cyberpunk-style grid anchor on the ground plane
+ * with corner markers and a center ring for spatial reference
+ */
 const DeskGrid: React.FC = () => {
   const gridRef = useRef<THREE.Group>(null);
 
@@ -65,7 +83,16 @@ const DeskGrid: React.FC = () => {
   );
 };
 
-// Holographic Avatar - Wireframe style with glitch effects
+/**
+ * HolographicAvatar Component
+ * The main floating holographic avatar with:
+ * - Wireframe sphere for head
+ * - Inner glow sphere
+ * - Orbiting rings
+ * - Vertical scan lines
+ * - Glowing eyes
+ * - Glitch effects for realism
+ */
 const HolographicAvatar: React.FC<{ isSpeaking?: boolean }> = ({ isSpeaking = false }) => {
   const avatarRef = useRef<THREE.Group>(null);
   const [glitchPhase, setGlitchPhase] = useState(0);
@@ -268,6 +295,9 @@ const FloatingWidget: React.FC<{
 const ARHologramScene: React.FC = () => {
   return (
     <>
+      {/* Scene background color */}
+      <color attach="background" args={['#000000']} />
+      
       {/* Ambient lighting */}
       <ambientLight intensity={0.2} color="#1a1a2e" />
 
@@ -330,12 +360,12 @@ const ARHologram: React.FC<ARHologramProps> = ({ isActive = true, onClose }) => 
   if (!isActive) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black">
+    <div className="fixed inset-0 z-[9999] bg-black">
       {/* Close button */}
       {onClose && (
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-50 px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 rounded-lg border border-cyan-500/50 backdrop-blur-sm transition-all"
+          className="absolute top-4 right-4 z-[10000] px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 rounded-lg border border-cyan-500/50 backdrop-blur-sm transition-all"
         >
           <i className="fas fa-times mr-2"></i>
           Exit AR Mode
@@ -343,7 +373,7 @@ const ARHologram: React.FC<ARHologramProps> = ({ isActive = true, onClose }) => 
       )}
 
       {/* Title overlay */}
-      <div className="absolute top-4 left-4 z-50 text-cyan-400 font-mono">
+      <div className="absolute top-4 left-4 z-[10000] text-cyan-400 font-mono">
         <div className="text-2xl font-bold tracking-wider mb-1">ELARA AR HOLOGRAM</div>
         <div className="text-xs tracking-widest opacity-70">
           AUGMENTED REALITY INTERFACE v3.0
@@ -351,7 +381,7 @@ const ARHologram: React.FC<ARHologramProps> = ({ isActive = true, onClose }) => 
       </div>
 
       {/* Instructions */}
-      <div className="absolute bottom-4 left-4 z-50 text-cyan-400/60 font-mono text-xs">
+      <div className="absolute bottom-4 left-4 z-[10000] text-cyan-400/60 font-mono text-xs">
         <div>LEFT CLICK + DRAG: Rotate</div>
         <div>RIGHT CLICK + DRAG: Pan</div>
         <div>SCROLL: Zoom</div>
@@ -359,6 +389,7 @@ const ARHologram: React.FC<ARHologramProps> = ({ isActive = true, onClose }) => 
 
       {/* Canvas with postprocessing effects */}
       <Canvas
+        className="absolute inset-0 w-full h-full"
         camera={{
           position: [0, 2, 8],
           fov: 50,
