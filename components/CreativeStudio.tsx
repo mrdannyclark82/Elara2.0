@@ -9,7 +9,27 @@ interface GeneratedImage {
   aspectRatio: string;
   model: string;
   timestamp: number;
+  type: 'image';
 }
+
+interface GeneratedVideo {
+  id: string;
+  url: string;
+  prompt: string;
+  timestamp: number;
+  type: 'video';
+}
+
+interface GeneratedCode {
+  id: string;
+  code: string;
+  prompt: string;
+  language: string;
+  timestamp: number;
+  type: 'code';
+}
+
+type GeneratedContent = GeneratedImage | GeneratedVideo | GeneratedCode;
 
 interface CreativeStudioProps {
   isOpen: boolean;
@@ -20,12 +40,14 @@ interface CreativeStudioProps {
 const STORAGE_KEY = 'milla_creative_studio_images';
 
 const CreativeStudio: React.FC<CreativeStudioProps> = ({ isOpen, onClose, onSetBackground }) => {
-  const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [content, setContent] = useState<GeneratedContent[]>([]);
+  const [contentType, setContentType] = useState<'image' | 'video' | 'code'>('image');
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [selectedModel, setSelectedModel] = useState<string>(MODELS.PRO_IMAGE);
+  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
+  const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
 
   // Compare Mode
   const [isCompareMode, setIsCompareMode] = useState(false);
@@ -37,38 +59,48 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({ isOpen, onClose, onSetB
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        setImages(JSON.parse(saved));
+        setContent(JSON.parse(saved));
       } catch (e) {
-        console.error("Failed to load images", e);
+        console.error("Failed to load content", e);
       }
     }
   }, []);
 
   // Save to LocalStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(images));
-  }, [images]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(content));
+  }, [content]);
 
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
-    
+
     setIsGenerating(true);
     try {
-        const imageUrl = await geminiService.generateImage(prompt, aspectRatio, selectedModel);
-        
-        if (imageUrl) {
-            const newImage: GeneratedImage = {
-                id: Date.now().toString(),
-                url: imageUrl,
-                prompt: prompt,
-                aspectRatio: aspectRatio,
-                model: selectedModel,
-                timestamp: Date.now()
-            };
-            setImages(prev => [newImage, ...prev]);
-            // Don't clear prompt immediately to allow quick tweaks
-        } else {
-            alert("Failed to generate image.");
+        if (contentType === 'image') {
+            const imageUrl = await geminiService.generateImage(prompt, aspectRatio, selectedModel);
+
+            if (imageUrl) {
+                const newImage: GeneratedImage = {
+                    id: Date.now().toString(),
+                    url: imageUrl,
+                    prompt: prompt,
+                    aspectRatio: aspectRatio,
+                    model: selectedModel,
+                    timestamp: Date.now(),
+                    type: 'image'
+                };
+                setContent(prev => [newImage, ...prev]);
+            } else {
+                alert("Failed to generate image.");
+            }
+        } else if (contentType === 'video') {
+            // For video, we'll need to call the video generation function
+            // This will be implemented when we integrate video generation
+            alert("Video generation coming soon!");
+        } else if (contentType === 'code') {
+            // For code, we'll need to call the code generation function
+            // This will be implemented when we integrate code generation
+            alert("Code generation coming soon!");
         }
     } catch (e) {
         console.error(e);
@@ -80,20 +112,55 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({ isOpen, onClose, onSetB
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
-      if (confirm("Delete this artwork?")) {
-          setImages(prev => prev.filter(img => img.id !== id));
-          if (selectedImage?.id === id) setSelectedImage(null);
+      if (confirm("Delete this content?")) {
+          setContent(prev => prev.filter(item => item.id !== id));
+          if (selectedContent?.id === id) setSelectedContent(null);
           setCompareSelection(prev => prev.filter(sid => sid !== id));
       }
   };
 
-  const handleDownload = (img: GeneratedImage) => {
-      const link = document.createElement('a');
-      link.href = img.url;
-      link.download = `milla-creation-${img.id}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const handleDownload = (item: GeneratedContent) => {
+      if (item.type === 'image') {
+          const link = document.createElement('a');
+          link.href = item.url;
+          link.download = `milla-creation-${item.id}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      } else if (item.type === 'video') {
+          const link = document.createElement('a');
+          link.href = item.url;
+          link.download = `milla-video-${item.id}.mp4`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      } else if (item.type === 'code') {
+          const blob = new Blob([item.code], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `milla-code-${item.id}.${getFileExtension(item.language)}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+      }
+  };
+
+  const getFileExtension = (language: string): string => {
+      const extensions: { [key: string]: string } = {
+          'javascript': 'js',
+          'typescript': 'ts',
+          'python': 'py',
+          'html': 'html',
+          'css': 'css',
+          'java': 'java',
+          'cpp': 'cpp',
+          'c': 'c',
+          'go': 'go',
+          'rust': 'rs'
+      };
+      return extensions[language.toLowerCase()] || 'txt';
   };
 
   const handleRemix = (img: GeneratedImage, e?: React.MouseEvent) => {
@@ -112,6 +179,10 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({ isOpen, onClose, onSetB
           if (prev.length >= 2) return [prev[1], id]; // Keep last 2
           return [...prev, id];
       });
+  };
+
+  const getFilteredContent = () => {
+      return content.filter(item => item.type === contentType);
   };
 
   if (!isOpen) return null;
