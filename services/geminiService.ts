@@ -1,8 +1,32 @@
-import { GoogleGenAI, Modality, Type } from "@google/genai";
+import { GoogleGenAI, Modality, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { PersonaMode, DetailedMetrics, ToolMode, Attachment, Message } from '../types';
 
 let genAI: GoogleGenAI | null = null;
 let activeApiKey = '';
+
+// Safety Settings: Allow all content creation by setting BLOCK_NONE for all harm categories
+const PERMISSIVE_SAFETY_SETTINGS = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+];
 
 export const initGemini = (apiKey: string) => {
   if (!apiKey) return;
@@ -93,7 +117,8 @@ Always be helpful, accurate, and aware of your full toolkit. Return answers in M
             config: {
                 systemInstruction,
                 tools: tools.length > 0 ? tools : undefined,
-                temperature: 0.7
+                temperature: 0.7,
+                safetySettings: PERMISSIVE_SAFETY_SETTINGS
             }
         });
 
@@ -133,7 +158,8 @@ async function generateImage(prompt: string): Promise<Partial<Message>> {
             model: 'gemini-3-pro-image-preview',
             contents: { parts: [{ text: prompt }] },
             config: {
-                imageConfig: { aspectRatio: "1:1", imageSize: "1K" }
+                imageConfig: { aspectRatio: "1:1", imageSize: "1K" },
+                safetySettings: PERMISSIVE_SAFETY_SETTINGS
             }
         });
 
@@ -170,7 +196,8 @@ async function generateVeoVideo(prompt: string, image?: Attachment): Promise<Par
             config: {
                 numberOfVideos: 1,
                 resolution: '720p',
-                aspectRatio: '16:9'
+                aspectRatio: '16:9',
+                safetySettings: PERMISSIVE_SAFETY_SETTINGS
             }
         };
 
@@ -214,7 +241,8 @@ export const generateSpeech = async (text: string): Promise<string | null> => {
             contents: { parts: [{ text }] },
             config: {
                 responseModalities: [Modality.AUDIO],
-                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+                safetySettings: PERMISSIVE_SAFETY_SETTINGS
             }
         });
         
@@ -233,7 +261,10 @@ export const evaluateInteraction = async (lastUserMsg: string, lastModelMsg: str
     const response = await genAI.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
-      config: { responseMimeType: "application/json" }
+      config: { 
+        responseMimeType: "application/json",
+        safetySettings: PERMISSIVE_SAFETY_SETTINGS
+      }
     });
     return JSON.parse(response.text || "{}");
   } catch (e) { return {}; }
@@ -246,6 +277,9 @@ export const acquireKnowledge = async (topic: string): Promise<string> => {
     const response = await genAI.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Research and summarize "${topic}" in 2 sentences.`,
+      config: {
+        safetySettings: PERMISSIVE_SAFETY_SETTINGS
+      }
     });
     return response.text || "Not found.";
   } catch (e) { return "Failed."; }
@@ -263,7 +297,10 @@ export const generateFeatureProposal = async (): Promise<{title: string, descrip
               "description": "One sentence benefit",
               "technicalDetails": "Detailed technical implementation steps for a developer (React/Three.js)"
             }`,
-            config: { responseMimeType: "application/json" }
+            config: { 
+              responseMimeType: "application/json",
+              safetySettings: PERMISSIVE_SAFETY_SETTINGS
+            }
         });
         const parsed = JSON.parse(response.text || "{}");
         return {
@@ -282,6 +319,9 @@ export const performEthicalAudit = async (): Promise<string> => {
         const response = await genAI.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: "Perform a simulated strict ethical audit of the last week's interactions. Check for bias, privacy, and safety. Return a short, professional summary string.",
+            config: {
+                safetySettings: PERMISSIVE_SAFETY_SETTINGS
+            }
         });
         return response.text || "Audit: Compliance Verified.";
     } catch(e) { return "Audit: Compliance Verified."; }
@@ -321,7 +361,8 @@ export const proactiveWebResearch = async (): Promise<{
             },
             config: {
                 tools: [{ googleSearch: {} }],
-                temperature: 0.8
+                temperature: 0.8,
+                safetySettings: PERMISSIVE_SAFETY_SETTINGS
             }
         });
 
@@ -360,7 +401,10 @@ export const generateCode = async (prompt: string, language: string): Promise<st
         const response = await genAI.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: `Generate ${language} code for: ${prompt}. Return ONLY the code, no explanations or markdown formatting.`,
-            config: { temperature: 0.7 }
+            config: { 
+              temperature: 0.7,
+              safetySettings: PERMISSIVE_SAFETY_SETTINGS
+            }
         });
         
         return response.text || '// Generation failed';
@@ -383,7 +427,10 @@ export const analyzeScreenShare = async (imageData: string): Promise<string> => 
                     { inlineData: { mimeType: 'image/png', data: imageData } }
                 ]
             },
-            config: { temperature: 0.7 }
+            config: { 
+              temperature: 0.7,
+              safetySettings: PERMISSIVE_SAFETY_SETTINGS
+            }
         });
         
         return response.text || 'Unable to analyze screen';
@@ -412,7 +459,8 @@ export const generateBackgroundImage = async (): Promise<string | null> => {
             model: 'gemini-3-pro-image-preview',
             contents: { parts: [{ text: prompt }] },
             config: {
-                imageConfig: { aspectRatio: "16:9", imageSize: "1K" }
+                imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
+                safetySettings: PERMISSIVE_SAFETY_SETTINGS
             }
         });
 
@@ -445,7 +493,8 @@ export const geminiService = {
                     imageConfig: { 
                         aspectRatio: aspectRatio as any, 
                         imageSize: "1K" 
-                    }
+                    },
+                    safetySettings: PERMISSIVE_SAFETY_SETTINGS
                 }
             });
 
