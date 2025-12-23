@@ -53,6 +53,16 @@ View your app in AI Studio: https://ai.studio/apps/drive/19jqfQTMSapioINoNOHkP9b
 - Non-intrusive design
 - Customizable themes
 
+### 🔮 **AR Hologram Mode** ✨ NEW
+- Immersive 3D augmented reality interface
+- Holographic avatar with cyberpunk aesthetic
+- Floating UI widgets with real-time data
+- Neon blue/purple lighting with bloom effects
+- Interactive orbit controls (rotate, zoom, pan)
+- Wireframe hologram with glitch effects
+- Desk grid anchor for spatial reference
+- Full-screen AR experience
+
 ---
 
 ## 🚀 Quick Start
@@ -125,6 +135,12 @@ User: "open studio"
 Elara: 🎨 Creative Studio opened. Let's create some art!
 ```
 
+### Enter AR Hologram Mode
+```
+User: "open hologram"
+Elara: 🔮 AR Hologram mode activated. Entering augmented reality interface!
+```
+
 ### Screen Assistance
 ```
 User: [Clicks screen share icon]
@@ -185,6 +201,7 @@ All 41 tests should pass ✅
 ### UI & Graphics
 - @react-three/fiber 9.4.2
 - @react-three/drei 10.7.7
+- @react-three/postprocessing (latest)
 - three 0.181.2
 - recharts 3.5.1
 
@@ -234,6 +251,75 @@ Stored in browser localStorage:
 
 ---
 
+## 🔧 Browser Compatibility
+
+### Recommended Browsers
+- **Chrome/Edge** (v100+): Full support for all features
+- **Firefox** (v100+): Full support for all features
+- **Safari** (v15+): Supported with minor limitations on screen share
+
+### WebGL Requirements
+The AR Hologram mode requires WebGL 2.0 support. Most modern browsers support this by default.
+
+**To check WebGL support:**
+1. Visit: https://get.webgl.org/webgl2/
+2. If you see a spinning cube, WebGL is working
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### AR Hologram Mode Not Loading
+**Problem:** Black screen or no rendering in AR mode  
+**Solutions:**
+- Ensure your browser supports WebGL 2.0
+- Check browser console for errors (F12)
+- Update your graphics drivers
+- Try a different browser (Chrome recommended)
+- Disable browser extensions that block 3D rendering
+
+#### Performance Issues / Low FPS
+**Problem:** Laggy or choppy AR hologram experience  
+**Solutions:**
+- Close other tabs/applications to free up GPU resources
+- Reduce browser window size
+- Disable postprocessing effects (if custom settings added)
+- Ensure hardware acceleration is enabled in browser settings
+  - Chrome: `chrome://settings` → Advanced → System → Use hardware acceleration
+
+#### React Three Fiber Errors
+**Problem:** Console errors about Three.js or Fiber  
+**Solutions:**
+- Clear `node_modules` and reinstall: `rm -rf node_modules && npm install`
+- Ensure all peer dependencies are satisfied
+- Check that Three.js version matches `@react-three/fiber` requirements
+
+#### Postprocessing Effects Not Visible
+**Problem:** Bloom or glow effects not showing  
+**Solutions:**
+- Ensure `@react-three/postprocessing` is installed
+- Check that your GPU supports the effects
+- Verify WebGL 2.0 is working
+- Try refreshing the page
+
+#### Build Warnings
+**Problem:** Large chunk size warnings during build  
+**Solutions:**
+- This is expected due to Three.js size
+- For production, consider code splitting
+- Warning does not affect functionality
+
+### Getting Help
+If issues persist:
+1. Check the browser console for errors (F12)
+2. Verify all dependencies are installed: `npm install`
+3. Try a clean rebuild: `npm run build`
+4. Create an issue with console logs and browser info
+
+---
+
 ## 📚 Documentation
 
 - **NEW_CAPABILITIES.md**: Comprehensive guide to new features
@@ -265,7 +351,7 @@ npm install
 # Add your GEMINI_API_KEY to .env
 npm run dev
 # Visit http://localhost:3000
-# Type: "open sandbox" or "open studio"
+# Type: "open sandbox", "open studio", or "open hologram"
 ```
 
 ---

@@ -6,6 +6,7 @@ import LiveSession from './components/LiveSession';
 import Sandbox from './components/Sandbox';
 import CreativeStudio from './components/CreativeStudio';
 import ThoughtLogger from './components/ThoughtLogger';
+import ARHologram from './components/ARHologram';
 import { 
   initGemini, 
   processUserRequest,
@@ -60,7 +61,7 @@ function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch
 const App: React.FC = () => {
   // Persistent Chat State
   const [messages, setMessages] = usePersistentState<Message[]>('elara_messages', [
-    { id: '1', role: 'model', content: "Systems Online. Neural Toolkit Active. I can search, generate images, create videos, code with you in the Sandbox, and create art. How can I help?", timestamp: Date.now() }
+    { id: '1', role: 'model', content: "Systems Online. Neural Toolkit Active. I can search, generate images, create videos, code with you in the Sandbox, create art, and display in AR Hologram mode. Type 'open hologram' to enter AR! How can I help?", timestamp: Date.now() }
   ]);
   
   // Persistent Advanced State
@@ -95,6 +96,7 @@ const App: React.FC = () => {
     const [creativeStudioOpen, setCreativeStudioOpen] = useState(false);
     const [screenShareActive, setScreenShareActive] = useState(false);
     const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+    const [arHologramActive, setArHologramActive] = useState(false);
   
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -452,6 +454,22 @@ const App: React.FC = () => {
       return;
     }
     
+    if (userText.toLowerCase() === 'open hologram' || userText.toLowerCase() === 'ar mode') {
+      setArHologramActive(true);
+      setMessages(prev => [...prev, { 
+        id: Date.now().toString(), 
+        role: 'user', 
+        content: userText, 
+        timestamp: Date.now() 
+      }, { 
+        id: (Date.now()+1).toString(), 
+        role: 'model', 
+        content: "🔮 AR Hologram mode activated. Entering augmented reality interface!", 
+        timestamp: Date.now() 
+      }]);
+      return;
+    }
+    
     // Coaching Mode Trap
     if (userText.toLowerCase() === 'upgrade me') {
         setCoachingMode(true);
@@ -722,6 +740,13 @@ const App: React.FC = () => {
                                 <i className="fas fa-palette"></i>
                             </button>
                             <button 
+                                onClick={() => setArHologramActive(true)} 
+                                className="text-cyan-400 hover:text-cyan-300 transition-colors" 
+                                title="Open AR Hologram"
+                            >
+                                <i className="fas fa-cube"></i>
+                            </button>
+                            <button 
                                 onClick={handleScreenShare} 
                                 className={`${screenShareActive ? 'text-green-400 animate-pulse' : 'text-blue-400'} hover:text-blue-300 transition-colors`} 
                                 title={screenShareActive ? "Stop Screen Share" : "Share Screen"}
@@ -768,6 +793,12 @@ const App: React.FC = () => {
         isOpen={creativeStudioOpen}
         onClose={() => setCreativeStudioOpen(false)}
         onSetBackground={(url) => setBackgroundImage(url)}
+      />
+      
+      {/* AR Hologram */}
+      <ARHologram 
+        isActive={arHologramActive}
+        onClose={() => setArHologramActive(false)}
       />
       
       <YouTubePlayer video={activeVideo} onClose={() => setActiveVideo(null)} />
